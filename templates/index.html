@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>CPNS VOICE</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+
+</head>
+<body>
+    <div class="container">
+        <h1>CPNS VOICE</h1>
+
+        <textarea id="textInput" placeholder="Ketik kalimatmu di sini, aku akan bacakan untukmu!"></textarea>
+
+        <label for="speedSelect">Kecepatan Suara:</label>
+        <select id="speedSelect">
+            <option value="normal">Kecepatan Normal</option>
+            <option value="slow">Kecepatan Lambat</option>
+            <option value="fast">Kecepatan Cepat</option>
+
+        </select>
+
+
+        <div class="buttons">
+            <button onclick="generateVoice()">🔊 Dengarkan</button>
+            <button id="toggleBtn" onclick="toggleAudio()" disabled>⏸️ Pause</button>
+            <a id="downloadBtn" href="#" class="btn" download>💾 Simpan sebagai MP3</a>
+        </div>
+
+        <p id="statusText"></p>
+    </div>
+
+    <script>
+        let currentAudio = null;
+        let isPaused = false;
+
+        async function generateVoice() {
+            const text = document.getElementById('textInput').value.trim();
+            const speed = document.getElementById('speedSelect').value;
+            const statusText = document.getElementById('statusText');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const toggleBtn = document.getElementById('toggleBtn');
+
+            statusText.textContent = '';
+            toggleBtn.disabled = true;
+
+            if (!text) {
+                statusText.textContent = 'Teks tidak boleh kosong!';
+                return;
+            }
+
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+
+            const response = await fetch('/speak', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, speed })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                currentAudio = new Audio(`/download/${result.file}`);
+
+                if (speed === 'fast') currentAudio.playbackRate = 1.5;
+                else if (speed === 'slow') currentAudio.playbackRate = 0.8;
+                else currentAudio.playbackRate = 1.0;
+
+                currentAudio.play();
+                isPaused = false;
+
+                toggleBtn.innerText = "⏸️ Pause";
+                toggleBtn.disabled = false;
+
+                downloadBtn.href = `/download/${result.file}`;
+                downloadBtn.setAttribute("download", result.file);
+
+                currentAudio.onended = () => {
+                    toggleBtn.disabled = true;
+                    toggleBtn.innerText = "⏸️ Pause";
+                };
+            } else {
+                statusText.textContent = result.error || 'Terjadi kesalahan.';
+            }
+        }
+
+        function toggleAudio() {
+            const toggleBtn = document.getElementById('toggleBtn');
+
+            if (!currentAudio) return;
+
+            if (isPaused) {
+                currentAudio.play();
+                toggleBtn.innerText = "⏸️ Pause";
+                isPaused = false;
+            } else {
+                currentAudio.pause();
+                toggleBtn.innerText = "▶️ Lanjutkan";
+                isPaused = true;
+            }
+        }
+
+    </script>
+</body>
+</html>
